@@ -1,3 +1,6 @@
 .idea
 .vscode
 out
+go.mod
+pbft.exe
+Keys
