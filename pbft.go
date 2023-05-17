@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 	"sync"
 )
@@ -35,7 +37,7 @@ type pbft struct {
 	messagePool map[string]Request
 	//存放收到的prepare数量(至少需要收到并确认2f个)，根据摘要来对应
 	prePareConfirmCount map[string]map[string]bool
-	//存放收到的commit数量（至少需要收到并确认2f+1个），根据摘要来对应
+	//存放收到的commit数量(至少需要收到并确认2f+1个)，根据摘要来对应
 	commitConfirmCount map[string]map[string]bool
 	//该笔消息是否已进行Commit广播
 	isCommitBordcast map[string]bool
@@ -86,6 +88,7 @@ func (p *pbft) handleClientRequest(content []byte) {
 	p.sequenceIDAdd()
 	//获取消息摘要
 	digest := getDigest(*r)
+	fmt.Println("收到的request消息为: ", r.Message)
 	fmt.Println("已将request存入临时消息池")
 	//存入临时消息池
 	p.messagePool[digest] = *r
@@ -98,15 +101,19 @@ func (p *pbft) handleClientRequest(content []byte) {
 	if err != nil {
 		log.Panic(err)
 	}
+	pause()
 	fmt.Println("正在向其他节点进行进行PrePrepare广播 ...")
+	fmt.Println("PrePrepare消息内容为: ", pp)
 	//进行PrePrepare广播
 	p.broadcast(cPrePrepare, b)
 	fmt.Println("PrePrepare广播完成")
+	pause()
 }
 
 //处理预准备消息
 func (p *pbft) handlePrePrepare(content []byte) {
 	fmt.Println("本节点已接收到主节点发来的PrePrepare ...")
+	pause()
 	//	//使用json解析出PrePrepare结构体
 	pp := new(PrePrepare)
 	err := json.Unmarshal(content, pp)
@@ -138,8 +145,12 @@ func (p *pbft) handlePrePrepare(content []byte) {
 		}
 		//进行准备阶段的广播
 		fmt.Println("正在进行Prepare广播 ...")
+		fmt.Println("广播的Prepare消息内容为: ", pre)
 		p.broadcast(cPrepare, bPre)
 		fmt.Println("Prepare广播完成")
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("Press enter to continue...")
+		_, _ = reader.ReadString('\n')
 	}
 }
 
@@ -178,7 +189,8 @@ func (p *pbft) handlePrepare(content []byte) {
 		p.lock.Lock()
 		//获取消息源节点的公钥，用于数字签名验证
 		if count >= specifiedCount && !p.isCommitBordcast[pre.Digest] {
-			fmt.Println("本节点已收到至少2f个节点(包括本地节点)发来的Prepare信息 ...")
+			pause()
+			fmt.Println("本节点已收到至少2f个节点(包括本地节点)发来的Prepare信息，内容为： ", pre)
 			//节点使用私钥对其签名
 			sign := p.RsaSignWithSha256(digestByte, p.node.rsaPrivKey)
 			c := Commit{pre.Digest, pre.SequenceID, p.node.nodeID, sign}
@@ -187,12 +199,14 @@ func (p *pbft) handlePrepare(content []byte) {
 				log.Panic(err)
 			}
 			//进行提交信息的广播
-			fmt.Println("正在进行commit广播")
+			fmt.Println("正在进行commit广播 ...")
+			fmt.Println("广播的commit消息内容为: ", bc)
 			p.broadcast(cCommit, bc)
 			p.isCommitBordcast[pre.Digest] = true
 			fmt.Println("commit广播完成")
 		}
 		p.lock.Unlock()
+		pause()
 	}
 }
 
@@ -226,7 +240,12 @@ func (p *pbft) handleCommit(content []byte) {
 			fmt.Println("本节点已收到至少2f + 1 个节点(包括本地节点)发来的Commit信息 ...")
 			//将消息信息，提交到本地消息池中！
 			localMessagePool = append(localMessagePool, p.messagePool[c.Digest].Message)
-			info := p.node.nodeID + "节点已将msgid:" + strconv.Itoa(p.messagePool[c.Digest].ID) + "存入本地消息池中,消息内容为：" + p.messagePool[c.Digest].Content
+			info := ""
+			if p.node.nodeID != "N0" {
+				info = p.node.nodeID + "节点已将msgid:" + strconv.Itoa(p.messagePool[c.Digest].ID) + "存入本地消息池中,消息内容为：" + p.messagePool[c.Digest].Content
+			} else {
+				info = "主节点已将msgid:" + strconv.Itoa(p.messagePool[c.Digest].ID) + "存入本地消息池中,消息内容为：" + p.messagePool[c.Digest].Content
+			}
 			fmt.Println(info)
 			fmt.Println("正在reply客户端 ...")
 			tcpDial([]byte(info), p.messagePool[c.Digest].ClientAddr)
@@ -287,4 +306,10 @@ func (p *pbft) getPivKey(nodeID string) []byte {
 		log.Panic(err)
 	}
 	return key
+}
+
+func pause() {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Press enter to continue...")
+	_, _ = reader.ReadString('\n')
 }
