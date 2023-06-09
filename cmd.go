@@ -7,7 +7,7 @@ import (
 	"log"
 )
 
-//<REQUEST,o,t,c>
+// Request <REQUEST,o,t,c>
 type Request struct {
 	Message
 	Timestamp int64
@@ -15,7 +15,7 @@ type Request struct {
 	ClientAddr string
 }
 
-//<<PRE-PREPARE,v,n,d>,m>
+// PrePrepare <<PRE-PREPARE,v,n,d>,m>
 type PrePrepare struct {
 	RequestMessage Request
 	Digest         string
@@ -23,7 +23,7 @@ type PrePrepare struct {
 	Sign           []byte
 }
 
-//<PREPARE,v,n,d,i>
+// Prepare <PREPARE,v,n,d,i>
 type Prepare struct {
 	Digest     string
 	SequenceID int
@@ -31,7 +31,7 @@ type Prepare struct {
 	Sign       []byte
 }
 
-//<COMMIT,v,n,D(m),i>
+// Commit <COMMIT,v,n,D(m),i>
 type Commit struct {
 	Digest     string
 	SequenceID int
@@ -39,7 +39,7 @@ type Commit struct {
 	Sign       []byte
 }
 
-//<REPLY,v,t,c,i,r>
+// Reply <REPLY,v,t,c,i,r>
 type Reply struct {
 	MessageID int
 	NodeID    string
@@ -62,7 +62,7 @@ const (
 	cCommit     command = "commit"
 )
 
-//默认前十二位为命令名称
+// 默认前十二位为命令名称
 func jointMessage(cmd command, content []byte) []byte {
 	b := make([]byte, prefixCMDLength)
 	for i, v := range []byte(cmd) {
@@ -73,7 +73,7 @@ func jointMessage(cmd command, content []byte) []byte {
 	return joint
 }
 
-//默认前十二位为命令名称
+// 默认前十二位为命令名称
 func splitMessage(message []byte) (cmd string, content []byte) {
 	cmdBytes := message[:prefixCMDLength]
 	newCMDBytes := make([]byte, 0)
@@ -87,13 +87,13 @@ func splitMessage(message []byte) (cmd string, content []byte) {
 	return
 }
 
-//对消息详情进行摘要
+// 对消息详情进行摘要
 func getDigest(request Request) string {
 	b, err := json.Marshal(request)
 	if err != nil {
 		log.Panic(err)
 	}
 	hash := sha256.Sum256(b)
-	//进行十六进制字符串编码
+	// 进行十六进制字符串编码
 	return hex.EncodeToString(hash[:])
 }

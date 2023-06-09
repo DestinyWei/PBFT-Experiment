@@ -7,7 +7,7 @@ import (
 	"net"
 )
 
-//客户端使用的tcp监听
+// 客户端使用的tcp监听
 func clientTcpListen() {
 	listen, err := net.Listen("tcp", clientAddr)
 	if err != nil {
@@ -29,7 +29,7 @@ func clientTcpListen() {
 
 }
 
-//节点使用的tcp监听
+// 节点使用的tcp监听
 func (p *pbft) tcpListen() {
 	listen, err := net.Listen("tcp", p.node.addr)
 	if err != nil {
@@ -52,7 +52,7 @@ func (p *pbft) tcpListen() {
 
 }
 
-//使用tcp发送消息
+// 使用tcp发送消息
 func tcpDial(context []byte, addr string) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
